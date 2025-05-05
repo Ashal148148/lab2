@@ -141,6 +141,14 @@ Resources:
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 30080
+          ToPort: 30080
+          CidrIp: 0.0.0.0/0
 
   OutgoingSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -226,13 +234,14 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref AmiId
-      InstanceType: !Ref GeneralInstanceType
+      InstanceType: !Ref K8sMasterInstanceType
       SubnetId: !Ref PublicSubnet2
       KeyName: !Ref MyKey
       SecurityGroupIds:
         - !Ref SSHSecurityGroup
         - !Ref InternalSecurityGroup
         - !Ref OutgoingSecurityGroup
+        - !Ref HTTPSecurityGroup
       Tags:
         - Key: Name
           Value: Lab2-Linux
