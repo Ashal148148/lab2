@@ -1,0 +1,239 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: VPC with 2 public subnets and 4 EC2 Linux instances, For lab2 RKE & Rancher 
+
+Parameters:
+  VpcName: 
+    Type: String
+    Default: lab2-vpc
+
+  VpcCidr:
+    Type: String
+    Default: 10.1.0.0/16
+
+  PublicSubnet1Cidr:
+    Type: String
+    Default: 10.1.1.0/24
+
+  PublicSubnet2Cidr:
+    Type: String
+    Default: 10.1.2.0/24
+
+  AmiId:
+    Type: String
+    Default: ami-009082a6cd90ccd0e
+
+  GeneralInstanceType:
+    Type: String
+    Default: t3.medium
+
+  K8sMasterInstanceType:
+    Type: String
+    Default: t3.large
+
+  KeyPair:
+    type: String
+    Default: lab2-shaul
+
+  MyIP:
+    type: String
+    Default: 212.143.114.209
+
+Resources:
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref VpcName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Lab2-igw
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet1Cidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: PublicSubnet1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnet2Cidr
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: PublicSubnet2
+
+  Subnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  Subnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH
+      GroupName: SSH
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref MyIP
+
+  HTTPSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Rancher on port 8443 and the web application on port 
+      GroupName: HTTP
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8443
+          ToPort: 8443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  OutgoingSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow free outgoing packets
+      GroupName: Outgoing
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  InternalSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow everything between members of this security group
+      GroupName: Internal
+      VpcId: !Ref VPC
+        
+  InternalIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref InternalSecurityGroup
+      SourceSecurityGroupId: !Ref InternalSecurityGroup
+      IpProtocol: -1
+
+  InternalEgressRule:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref InternalSecurityGroup
+      DestinationSecurityGroupId: !Ref InternalSecurityGroup
+      IpProtocol: -1
+
+# === EC2 Instances ===
+
+  EC2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref K8sMasterInstanceType
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref SSHSecurityGroup
+        - !Ref InternalSecurityGroup
+        - !Ref OutgoingSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Lab2-Master
+
+  EC2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref GeneralInstanceType
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref SSHSecurityGroup
+        - !Ref InternalSecurityGroup
+        - !Ref HTTPSecurityGroup
+        - !Ref OutgoingSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Lab2-Worker1
+
+  EC2Instance3:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref GeneralInstanceType
+      SubnetId: !Ref PublicSubnet2
+      SecurityGroupIds:
+        - !Ref SSHSecurityGroup
+        - !Ref InternalSecurityGroup
+        - !Ref HTTPSecurityGroup
+        - !Ref OutgoingSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Lab2-Worker2
+
+  EC2Instance4:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref GeneralInstanceType
+      SubnetId: !Ref PublicSubnet2
+      SecurityGroupIds:
+        - !Ref SSHSecurityGroup
+        - !Ref InternalSecurityGroup
+        - !Ref OutgoingSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Lab2-Linux
+
+Outputs:
+  PublicSubnet1:
+    Value: !Ref PublicSubnet1
+  PublicSubnet2:
+    Value: !Ref PublicSubnet2

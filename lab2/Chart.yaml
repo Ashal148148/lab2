@@ -1,0 +1,6 @@
+apiVersion: v2
+name: lab2
+description: A simple static website 
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
