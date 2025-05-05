@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: VPC with 2 public subnets and 4 EC2 Linux instances, For lab2 RKE & Rancher 
+# S3 location https://s3.eu-central-1.amazonaws.com/cf-templates-1gjob17apauzp-eu-central-1/2025-05-05T062647.927Z8wl-everything.yaml
 
 Parameters:
   VpcName: 
@@ -30,13 +31,13 @@ Parameters:
     Type: String
     Default: t3.large
 
-  KeyPair:
-    type: String
+  MyKey:
+    Type: String
     Default: lab2-shaul
 
   MyIP:
-    type: String
-    Default: 212.143.114.209
+    Type: String
+    Default: 212.143.114.209/32
 
 Resources:
 
@@ -180,6 +181,7 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: !Ref K8sMasterInstanceType
       SubnetId: !Ref PublicSubnet1
+      KeyName: !Ref MyKey
       SecurityGroupIds:
         - !Ref SSHSecurityGroup
         - !Ref InternalSecurityGroup
@@ -194,6 +196,7 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: !Ref GeneralInstanceType
       SubnetId: !Ref PublicSubnet1
+      KeyName: !Ref MyKey
       SecurityGroupIds:
         - !Ref SSHSecurityGroup
         - !Ref InternalSecurityGroup
@@ -209,6 +212,7 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: !Ref GeneralInstanceType
       SubnetId: !Ref PublicSubnet2
+      KeyName: !Ref MyKey
       SecurityGroupIds:
         - !Ref SSHSecurityGroup
         - !Ref InternalSecurityGroup
@@ -224,6 +228,7 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: !Ref GeneralInstanceType
       SubnetId: !Ref PublicSubnet2
+      KeyName: !Ref MyKey
       SecurityGroupIds:
         - !Ref SSHSecurityGroup
         - !Ref InternalSecurityGroup
