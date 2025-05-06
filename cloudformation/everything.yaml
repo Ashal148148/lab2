@@ -39,6 +39,10 @@ Parameters:
     Type: String
     Default: 212.143.114.209/32
 
+  RootSizeGB:
+    Type: Number
+    Default: 20
+
 Resources:
 
   VPC:
@@ -125,6 +129,7 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref MyIP
+      SecurityGroupEgress: []
 
   HTTPSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -145,10 +150,11 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
+        - IpProtocol: tcp  # Kong node-port
           FromPort: 30080
           ToPort: 30080
           CidrIp: 0.0.0.0/0
+      SecurityGroupEgress: []
 
   OutgoingSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -181,7 +187,7 @@ Resources:
       DestinationSecurityGroupId: !Ref InternalSecurityGroup
       IpProtocol: -1
 
-# === EC2 Instances ===
+  # === EC2 Instances ===
 
   EC2Instance1:
     Type: AWS::EC2::Instance
@@ -194,6 +200,12 @@ Resources:
         - !Ref SSHSecurityGroup
         - !Ref InternalSecurityGroup
         - !Ref OutgoingSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref RootSizeGB
+            VolumeType: gp3
+            DeleteOnTermination: true
       Tags:
         - Key: Name
           Value: Lab2-Master
@@ -210,6 +222,12 @@ Resources:
         - !Ref InternalSecurityGroup
         - !Ref HTTPSecurityGroup
         - !Ref OutgoingSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref RootSizeGB
+            VolumeType: gp3
+            DeleteOnTermination: true
       Tags:
         - Key: Name
           Value: Lab2-Worker1
@@ -226,6 +244,12 @@ Resources:
         - !Ref InternalSecurityGroup
         - !Ref HTTPSecurityGroup
         - !Ref OutgoingSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref RootSizeGB
+            VolumeType: gp3
+            DeleteOnTermination: true
       Tags:
         - Key: Name
           Value: Lab2-Worker2
@@ -234,7 +258,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !Ref AmiId
-      InstanceType: !Ref K8sMasterInstanceType
+      InstanceType: !Ref GeneralInstanceType
       SubnetId: !Ref PublicSubnet2
       KeyName: !Ref MyKey
       SecurityGroupIds:
@@ -242,6 +266,12 @@ Resources:
         - !Ref InternalSecurityGroup
         - !Ref OutgoingSecurityGroup
         - !Ref HTTPSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref RootSizeGB
+            VolumeType: gp3
+            DeleteOnTermination: true
       Tags:
         - Key: Name
           Value: Lab2-Linux
